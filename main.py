@@ -1,8 +1,6 @@
 """Enhance Image Using Tensorflow"""
-from PIL import Image
 from matplotlib import pyplot as plt
 import numpy as np
-import os
 import tensorflow as tf
 
 train_path = 'Train_x'
@@ -50,3 +48,12 @@ Valid_dataset = Validating_images.map(load_image)
 #     plt.imshow(y, interpolation='nearest')
 #     plt.show()
 #     break
+
+dataset = Train_dataset.cache()
+dataset = dataset.shuffle(buffer_size=1000)
+dataset = dataset.batch(batch_size=32)
+dataset = dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
+
+
+class Enhance_Model:
+    def __init__(self):
