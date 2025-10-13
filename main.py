@@ -56,6 +56,8 @@ dataset = dataset.shuffle(buffer_size=1000)
 dataset = dataset.batch(batch_size=32)
 dataset = dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
 
+val_dataset = Valid_dataset.batch(32).prefetch(tf.data.AUTOTUNE)
+
 base_model = tf.keras.models.load_model('srcnn_model.h5')
 
 
@@ -86,12 +88,12 @@ def new_model(baseModel):
         layer.trainable = False
         x = layer(x)
         i += 1
-    x = Conv2D(64, (4, 4), padding='same', activation='relu', name='output_conv')(x)
+    x = Conv2D(3, (5, 5), padding='same', activation='relu', name='output_conv')(x)
     return Model(inputs=new_input, outputs=x)
 
 
 model = new_model(base_model)
 # print(model.summary())
-model.compile(optimizer='adam', loss='mse', metric=['mae'])
-model.fit(dataset=Train_dataset, validation_data=Valid_dataset, epochs=10)
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(dataset, validation_data=val_dataset, epochs=10, verbose=2)
 model.save('enhance_model_v1.0.0.h5')
