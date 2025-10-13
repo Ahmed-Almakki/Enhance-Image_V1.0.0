@@ -2,6 +2,8 @@
 from matplotlib import pyplot as plt
 import numpy as np
 import tensorflow as tf
+from keras.layers import Input, Conv2D
+from keras.models import Model
 
 train_path = 'Train_x'
 output_path = 'Train_Y'
@@ -54,6 +56,42 @@ dataset = dataset.shuffle(buffer_size=1000)
 dataset = dataset.batch(batch_size=32)
 dataset = dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
 
+base_model = tf.keras.models.load_model('srcnn_model.h5')
 
-class Enhance_Model:
-    def __init__(self):
+
+def new_model(baseModel):
+    """
+    adding new layers one to the input becuase the old input layer was greyscal and iam using RGB
+    for the first try to see if it will be better output.
+        also added output layer to see the performance if it will be much better
+    Problem:
+        the first conv2d layer was excepting input with dimension(x, x, 1) grey scal image so i change the
+        first conv layer to one excepting RGB instead of Grey
+    :param baseModel: the base model to be fine tune
+    :return: model
+    """
+    first_layer = baseModel.layers[1]
+    new_first = Conv2D(filters=first_layer.filters,
+                       kernel_size=first_layer.kernel_size,
+                       padding=first_layer.padding,
+                       activation=first_layer.activation,
+                       input_shape=(215, 215, 3)
+                       )
+    new_input = Input(shape=(215, 215, 3))
+    x = new_input
+    i = 1
+    for layer in baseModel.layers[1:-1]:
+        if i == 1:
+            layer = new_first
+        layer.trainable = False
+        x = layer(x)
+        i += 1
+    x = Conv2D(64, (4, 4), padding='same', activation='relu', name='output_conv')(x)
+    return Model(inputs=new_input, outputs=x)
+
+
+model = new_model(base_model)
+# print(model.summary())
+model.compile(optimizer='adam', loss='mse', metric=['mae'])
+model.fit(dataset=Train_dataset, validation_data=Valid_dataset, epochs=10)
+model.save('enhance_model_v1.0.0.h5')
