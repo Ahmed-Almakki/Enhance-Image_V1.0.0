@@ -1,6 +1,5 @@
-"""Enhance Image Using Tensorflow"""
-from matplotlib import pyplot as plt
-import numpy as np
+"""Enhance Image Using Tensorflow, Fine-Tuning SRCNN model and also using RGB image
+    instead of GreyScale image"""
 import tensorflow as tf
 from keras.layers import Input, Conv2D
 from keras.models import Model
@@ -19,24 +18,20 @@ Training_images = tf.data.Dataset.zip((train_img, output_img))
 Validating_images = tf.data.Dataset.zip((valid_img, valid_output))
 
 
-
 def load_image(image_path, output_image_path):
-    """Load the image to create the pipline
+    """Load the image to create the pipline and process the image by resizing and normalizing
     :param:
         image_path: the path of the input image
         output_path: path of the output image"""
-    print(f"first {image_path}\t{output_image_path}")
     lr = tf.image.decode_image(tf.io.read_file(image_path), channels=3)
     hr = tf.image.decode_image(tf.io.read_file(output_image_path), channels=3)
 
     lr.set_shape([None, None, 3])
     hr.set_shape([None, None, 3])
 
-    print(f"second {lr}\n{hr}")
     lr = tf.image.convert_image_dtype(lr, tf.float32)
     hr = tf.image.convert_image_dtype(hr, tf.float32)
 
-    print(f"\n-------------------------------------\nthird{lr}\n{hr}")
     lr = tf.image.resize(lr, [215, 215])
     hr = tf.image.resize(hr, [215, 215])
     return lr, hr
@@ -44,12 +39,6 @@ def load_image(image_path, output_image_path):
 
 Train_dataset = Training_images.map(load_image)
 Valid_dataset = Validating_images.map(load_image)
-# print(f"train_img: {train_img}\nTraining_image: {Training_images}\nTrainDataset: {Train_dataset}")
-# for x, y in Train_dataset:
-#     print(f"shap: {x.shape}\n x: {x}\n y: {y}")
-#     plt.imshow(y, interpolation='nearest')
-#     plt.show()
-#     break
 
 dataset = Train_dataset.cache()
 dataset = dataset.shuffle(buffer_size=1000)
@@ -63,12 +52,12 @@ base_model = tf.keras.models.load_model('srcnn_model.h5')
 
 def new_model(baseModel):
     """
-    adding new layers one to the input becuase the old input layer was greyscal and iam using RGB
+    adding new layers one to the input because the old input layer was greyscale and iam using RGB
     for the first try to see if it will be better output.
         also added output layer to see the performance if it will be much better
     Problem:
-        the first conv2d layer was excepting input with dimension(x, x, 1) grey scal image so i change the
-        first conv layer to one excepting RGB instead of Grey
+        the first conv2d layer was excepting input with dimension(x, x, 1) grey scal image, so I change the
+        first conv layer to one excepting RGB instead of Greyscale
     :param baseModel: the base model to be fine tune
     :return: model
     """
@@ -93,7 +82,6 @@ def new_model(baseModel):
 
 
 model = new_model(base_model)
-# print(model.summary())
 model.compile(optimizer='adam', loss='mse', metrics=['mae'])
-model.fit(dataset, validation_data=val_dataset, epochs=10, verbose=2)
+model.fit(dataset, validation_data=val_dataset, epochs=500, verbose=1)
 model.save('enhance_model_v1.0.0.h5')
