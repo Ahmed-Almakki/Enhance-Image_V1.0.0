@@ -1,7 +1,7 @@
 """Enhance Image Using Tensorflow, Fine-Tuning SRCNN model and also using RGB image
     instead of GreyScale image"""
 import tensorflow as tf
-from keras.layers import Input, Conv2D
+from keras.layers import Input, Conv2D, UpSampling2D
 from keras.models import Model
 
 train_path = 'Train_x'
@@ -32,8 +32,8 @@ def load_image(image_path, output_image_path):
     lr = tf.image.convert_image_dtype(lr, tf.float32)
     hr = tf.image.convert_image_dtype(hr, tf.float32)
 
-    lr = tf.image.resize(lr, [215, 215])
-    hr = tf.image.resize(hr, [215, 215])
+    lr = tf.image.resize(lr, [250, 250], method='bicubic')
+    hr = tf.image.resize(hr, [250, 250])
     return lr, hr
 
 
@@ -47,41 +47,32 @@ dataset = dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
 
 val_dataset = Valid_dataset.batch(32).prefetch(tf.data.AUTOTUNE)
 
-base_model = tf.keras.models.load_model('srcnn_model.h5')
+
+class EnhanceModel(Model):
+    def __init__(self):
+        super(EnhanceModel, self).__init__()
+        self.conv_1 = Conv2D(128, (9, 9), padding='same', strides=1, activation='relu', name='first_conv')
+        self.conv_2 = Conv2D(64, (3, 3), padding='same', strides=1, activation='relu', name='second_conv')
+        self.conv_3 = Conv2D(3, (5, 5), padding='same', strides=1, activation='relu', name='third_conv')
+
+    def call(self, inputs):
+        x = self.conv_1(inputs)
+        x = self.conv_2(x)
+        x = self.conv_3(x)
+        return x
 
 
-def new_model(baseModel):
-    """
-    adding new layers one to the input because the old input layer was greyscale and iam using RGB
-    for the first try to see if it will be better output.
-        also added output layer to see the performance if it will be much better
-    Problem:
-        the first conv2d layer was excepting input with dimension(x, x, 1) grey scal image, so I change the
-        first conv layer to one excepting RGB instead of Greyscale
-    :param baseModel: the base model to be fine tune
-    :return: model
-    """
-    first_layer = baseModel.layers[1]
-    new_first = Conv2D(filters=first_layer.filters,
-                       kernel_size=first_layer.kernel_size,
-                       padding=first_layer.padding,
-                       activation=first_layer.activation,
-                       input_shape=(215, 215, 3)
-                       )
-    new_input = Input(shape=(215, 215, 3))
-    x = new_input
-    i = 1
-    for layer in baseModel.layers[1:-1]:
-        if i == 1:
-            layer = new_first
-        layer.trainable = False
-        x = layer(x)
-        i += 1
-    x = Conv2D(3, (5, 5), padding='same', activation='relu', name='output_conv')(x)
-    return Model(inputs=new_input, outputs=x)
+# def psnr_metric(y_true, y_pred):
+#     """PSNR metric from the SRCNN paper"""
+#     return tf.image.psnr(y_true, y_pred, max_val=1.0)
+
+#
+# def ssim_metric(y_true, y_pred):
+#     """SSIM metric from the SRCNN paper"""
+#     return tf.image.ssim(y_true, y_pred, max_val=1.0)
 
 
-model = new_model(base_model)
+model = EnhanceModel()
 model.compile(optimizer='adam', loss='mse', metrics=['mae'])
-model.fit(dataset, validation_data=val_dataset, epochs=500, verbose=1)
-model.save('enhance_model_v1.0.0.h5')
+model.fit(dataset, validation_data=val_dataset, epochs=200, verbose=1)
+model.save('enhance_model_v1.0.3.h5')
