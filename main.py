@@ -69,15 +69,22 @@
 # model.save('enhance_model_v1.0.3.h5')
 
 import tensorflow as tf
-from tensorflow.python.client import device_lib
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'  # show all logs
+import matplotlib.pyplot as plt
+import numpy as np
 
-print(device_lib.list_local_devices())
-print(tf.__version__)
-print(tf.test.is_built_with_cuda())
-print(tf.test.is_built_with_gpu_support())
+# Load the model
+model = tf.saved_model.load('saved_model')
+infer = model.signatures["serving_default"]
 
-import ctypes
-ctypes.cdll.LoadLibrary(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2\bin\cudart64_12.dll")
-print("CUDA runtime loaded!")
+# Load and preprocess the image
+image_path = 'Train_x/0001x4m.png'
+x = tf.image.decode_image(tf.io.read_file(image_path), channels=3)  # ensure RGB
+x = tf.cast(x, tf.float32) / 255.0  # normalize if model expects 0-1
+x_input = tf.expand_dims(x, 0)      # add batch dimension
+
+# Predict
+output = infer(x_input)
+print(f'first {output}')
+# Extract predicted tensor (assuming single output)
+# output_tensor = list(output.values())[0]
+
