@@ -68,23 +68,30 @@
 # model.fit(dataset, validation_data=val_dataset, epochs=10, verbose=1)
 # model.save('enhance_model_v1.0.3.h5')
 
-import tensorflow as tf
 import matplotlib.pyplot as plt
-import numpy as np
+import cv2 as cv
 
-# Load the model
-model = tf.saved_model.load('saved_model')
-infer = model.signatures["serving_default"]
+image = "Train_x/0001x4m.png"
 
-# Load and preprocess the image
-image_path = 'Train_x/0001x4m.png'
-x = tf.image.decode_image(tf.io.read_file(image_path), channels=3)  # ensure RGB
-x = tf.cast(x, tf.float32) / 255.0  # normalize if model expects 0-1
-x_input = tf.expand_dims(x, 0)      # add batch dimension
 
-# Predict
-output = infer(x_input)
-print(f'first {output}')
-# Extract predicted tensor (assuming single output)
-# output_tensor = list(output.values())[0]
+def check(path):
+    img = cv.imread(path)
+    img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+    h, w = img.shape[:2]
+    apect_ratio = h / w
+    wanted_width = w // 2
+    new_height = int(wanted_width * apect_ratio)
 
+    img_x = cv.resize(img, (wanted_width, new_height))
+    img_x = cv.resize(img_x, (w, h))
+
+    fig, ax = plt.subplots(1, 2)
+    ax[0].imshow(img)
+    ax[0].set_title("original")
+    ax[1].imshow(img_x)
+    ax[1].set_title("resized image")
+
+    plt.show()
+
+
+check(image)
